@@ -712,12 +712,63 @@ class Scenario(object):
     def failed(self):
         return any([step.failed for step in self.steps])
 
+    @property
+    def flaky_params(self):
+        """
+        Extract flaky tag parameters if there is any.
+
+        Valid syntax/form for tag:
+            @flaky
+            @flaky(max_runs, min_passes)
+
+            max_runs: Total number of times a Scenario can run.
+            min_passes: Total number of times a Scenario should pass.
+
+            @flaky without any parameters have max_runs = 2 and min_passes = 1
+
+            1. min_passes can't be greater than max_runs
+            2. zero and negative values will not be entertained.
+
+            In presence of either of above two conditions max_runs and min_passes will both set to 1
+
+            If there is no @flaky tag then max_runs and min_passes will both set to 1
+
+        Returns:
+            tuple: max_runs, min_passes
+
+        """
+        max_runs = 1
+        min_passes = 1
+        flaky_re = re.compile(r'flaky(?:\((?P<max_runs>\d+),\s*(?P<min_passes>\d+)\))?$')
+
+        for tag in self.tags:
+            flaky_tag = flaky_re.match(tag)
+            if flaky_tag:
+                max_runs = flaky_tag.group('max_runs')
+                min_passes = flaky_tag.group('min_passes')
+
+                if max_runs is None and min_passes is None:
+                    max_runs = 2
+                    min_passes = 1
+                else:
+                    max_runs = int(max_runs)
+                    min_passes = int(min_passes)
+
+                if max_runs <= 0 or min_passes <= 0 or min_passes > max_runs:
+                    max_runs = 1
+                    min_passes = 1
+
+                break
+
+        return max_runs, min_passes
+
     def run(self, ignore_case, failfast=False):
         """Runs a scenario, running each of its steps. Also call
-        before_each and after_each callbacks for steps and scenario"""
-
-        results = []
-        call_hook('before_each', 'scenario', self)
+        before_each and after_each callbacks for steps and scenario
+        The scenario will re-run max_runs times if the @flaky tag
+        with or without parameters is present. If @flaky tag is not
+        present then scenario run only once.
+        """
 
         def run_scenario(almost_self, order=-1, outline=None, run_callbacks=False):
             try:
@@ -745,14 +796,40 @@ class Scenario(object):
                 steps_undefined
             )
 
-        if self.outlines:
-            for index, outline in enumerate(self.outlines):
-                results.append(run_scenario(self, index, outline, run_callbacks=True))
-        else:
-            results.append(run_scenario(self, run_callbacks=True))
+        results = []
+        passed = 0
+        max_runs, min_passes = self.flaky_params
 
-        call_hook('after_each', 'scenario', self)
-        return results
+        for ran in range(max_runs):
+
+            scenario_result = []
+
+            call_hook('before_each', 'scenario', self)
+
+            if self.outlines:
+                for index, outline in enumerate(self.outlines):
+                    scenario_result.append(run_scenario(self, index, outline, run_callbacks=True))
+            else:
+                scenario_result.append(run_scenario(self, run_callbacks=True))
+
+            call_hook('after_each', 'scenario', self)
+
+            if all(result.passed for result in scenario_result):
+                passed += 1
+            else:
+                # We only need to store failed results.
+                # TODO! We will print these results along with final results to help the user to debug failed scenario.
+                results.append(scenario_result)
+
+            if passed == min_passes:
+                # Everything is good. Return the passed result. This is the default when flaky tag is not present.
+                return scenario_result
+
+            # check if remaining runs + passed runs can achieve the min_passes condition?
+            if (max_runs - (ran + 1)) + passed < min_passes:
+                # Even if the remaining number of runs all passes we can't achieve min_passes.
+                # So no need to run anymore. Now return the last failed result. Scenario is failed.
+                return results[-1]
 
     def _add_myself_to_steps(self):
         for step in self.steps:
