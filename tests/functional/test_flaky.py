@@ -32,14 +32,14 @@ def test_flaky():
         "    Traceback (most recent call last):\n"
         '      File "%(lettuce_core_file)s", line %(call_line)d, in __call__\n'
         "        ret = self.function(self.step, *args, **kw)\n"
-        '      File "/home/ammar/lettuce/tests/functional/flaky_features/flaky_test/flaky.py", line 15, in this_step\n'
+        '      File "%(step_file)s", line 15, in this_step\n'
         "        assert step_actions[action]\n"
         "    AssertionError\n"
         "    Given this test step fail                           # tests/functional/flaky_features/flaky_test/flaky.py:14\n"
         "    Traceback (most recent call last):\n"
         '      File "%(lettuce_core_file)s", line %(call_line)d, in __call__\n'
         "        ret = self.function(self.step, *args, **kw)\n"
-        '      File "/home/ammar/lettuce/tests/functional/flaky_features/flaky_test/flaky.py", line 15, in this_step\n'
+        '      File "%(step_file)s", line 15, in this_step\n'
         "        assert step_actions[action]\n"
         "    AssertionError\n"
         "\n"
@@ -54,14 +54,14 @@ def test_flaky():
         "    Traceback (most recent call last):\n"
         '      File "%(lettuce_core_file)s", line %(call_line)d, in __call__\n'
         "        ret = self.function(self.step, *args, **kw)\n"
-        '      File "/home/ammar/lettuce/tests/functional/flaky_features/flaky_test/flaky.py", line 25, in conditional_step\n'
+        '      File "%(step_file)s", line 25, in conditional_step\n'
         "        assert False\n"
         "    AssertionError\n"
         "    Given execute the steps                             # tests/functional/flaky_features/flaky_test/flaky.py:19\n"
         "    Traceback (most recent call last):\n"
         '      File "%(lettuce_core_file)s", line %(call_line)d, in __call__\n'
         "        ret = self.function(self.step, *args, **kw)\n"
-        '      File "/home/ammar/lettuce/tests/functional/flaky_features/flaky_test/flaky.py", line 25, in conditional_step\n'
+        '      File "%(step_file)s", line 25, in conditional_step\n'
         "        assert False\n"
         "    AssertionError\n"
         "\n"
