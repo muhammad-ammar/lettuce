@@ -796,40 +796,57 @@ class Scenario(object):
                 steps_undefined
             )
 
+        def result_stats(result, remaining, passes_required):
+
+            is_passed = result.passed
+
+            passes_required -= is_passed
+
+            return is_passed, passes_required, remaining < passes_required
+
+        def _run(self, max_runs, passes_required, run_hooks=False, index=-1, outline=None):
+
+            if run_hooks:
+                call_hook('before_each', 'scenario', self)
+
+            for run in xrange(1, max_runs + 1):
+                result = run_scenario(self, index, outline, run_callbacks=True)
+
+                is_passed, passes_required, stop = result_stats(result, max_runs-run, passes_required)
+
+                if passes_required == 0 or stop:
+                    break
+
+            if run_hooks:
+                call_hook('after_each', 'scenario', self)
+
+            # if 'this test step fail' in self.name:
+            # from nose.tools import set_trace; set_trace()
+
+            return result
+
         results = []
-        passed = 0
         max_runs, min_passes = self.flaky_params
+        passes_required = min_passes
 
-        for ran in range(max_runs):
-
-            scenario_result = []
+        if self.outlines:
 
             call_hook('before_each', 'scenario', self)
 
-            if self.outlines:
-                for index, outline in enumerate(self.outlines):
-                    scenario_result.append(run_scenario(self, index, outline, run_callbacks=True))
-            else:
-                scenario_result.append(run_scenario(self, run_callbacks=True))
+            for index, outline in enumerate(self.outlines):
+
+                passes_required = min_passes
+
+                result = _run(self, max_runs, passes_required, index=index, outline=outline)
+                results.append(result)
 
             call_hook('after_each', 'scenario', self)
 
-            if all(result.passed for result in scenario_result):
-                passed += 1
-            else:
-                # We only need to store failed results.
-                # TODO! We will print these results along with final results to help the user to debug failed scenario.
-                results.append(scenario_result)
+        else:
+            result = _run(self, max_runs, passes_required, run_hooks=True)
+            results.append(result)
 
-            if passed == min_passes:
-                # Everything is good. Return the passed result. This is the default when flaky tag is not present.
-                return scenario_result
-
-            # check if remaining runs + passed runs can achieve the min_passes condition?
-            if (max_runs - (ran + 1)) + passed < min_passes:
-                # Even if the remaining number of runs all passes we can't achieve min_passes.
-                # So no need to run anymore. Now return the last failed result. Scenario is failed.
-                return results[-1]
+        return results
 
     def _add_myself_to_steps(self):
         for step in self.steps:
